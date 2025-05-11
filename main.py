@@ -3,6 +3,7 @@ import random
 from astrbot.api import logger
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
+from astrbot.core.message.components import At
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
@@ -39,8 +40,10 @@ class MyPlugin(Star):
         self.emotions_dict: dict[str, list[int]] = emotions_dict
         # 可用情感关键字
         self.emotion_keywords: list[str] = list(self.emotions_dict.keys())
-        # 情感分析概率
-        self.analysis_prob: float = config.get("analysis_prob", 0.1)
+        # 对普通消息进行情感分析的概率
+        self.normal_analysis_prob: float = config.get("normal_analysis_prob", 0.01)
+        # 对@消息进行情感分析的概率
+        self.at_analysis_prob: float = config.get("at_analysis_prob", 0.1)
 
     @filter.command("贴表情")
     async def replyMessage(self, event: AiocqhttpMessageEvent, emojiNum: int = 5):
@@ -77,13 +80,20 @@ class MyPlugin(Star):
         监听群消息，并进行情感分析
 
         """
-        if random.random() > self.analysis_prob:
-            return
+        chain = event.get_messages()
+        random_num = random.random()
+        if isinstance(chain[0], At):
+            if random_num > self.at_analysis_prob:
+                return
+        else:
+            if random_num > self.normal_analysis_prob:
+                return
         text = event.get_message_str()
         if not text:
             return
-        message_id = event.message_obj.message_id
+
         emotion = await self.judge_emotion(text)
+        message_id = event.message_obj.message_id
 
         for keyword in self.emotion_keywords:
             if keyword in emotion:
@@ -92,7 +102,8 @@ class MyPlugin(Star):
                     message_id=message_id, emoji_id=emoji_id, set=True
                 )
                 break
-        event.stop_event()
+        if not isinstance(chain[0], At):
+            event.stop_event()
 
     async def judge_emotion(self, text: str):
         """让LLM判断语句的情感"""

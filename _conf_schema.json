@@ -1,8 +1,14 @@
 {
     "analysis_prob": {
-        "description": "情感分析概率",
+        "description": "对普通消息进行情感分析的概率",
         "type": "float",
         "hint": "范围：0-1",
-        "default": 0.05
+        "default": 0.01
+    },
+    "at_analysis_prob": {
+        "description": "对回复@消息进行情感分析的概率",
+        "type": "float",
+        "hint": "范围：0-1",
+        "default": 0.1
     }
 }
