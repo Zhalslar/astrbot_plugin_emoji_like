@@ -33,7 +33,7 @@ git clone https://github.com/Zhalslar/astrbot_plugin_emoji_like
 
 ## ⌨️ 使用说明
 
-### 命令
+### 命令表
 
 |     命令      |        说明         |
 |:-------------:|:----------------------------:|
@@ -41,6 +41,8 @@ git clone https://github.com/Zhalslar/astrbot_plugin_emoji_like
 | /贴表情 数量  | 若不填数量，则默认贴5个    |
 
 ### 示例图
+
+![download](https://github.com/user-attachments/assets/22d4a258-1d84-430e-9832-de2b12cdd9cf)
 
 ## 👥 贡献指南
 
