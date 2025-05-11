@@ -1,0 +1,8 @@
+{
+    "analysis_prob": {
+        "description": "情感分析概率",
+        "type": "float",
+        "hint": "范围：0-1",
+        "default": 0.05
+    }
+}
