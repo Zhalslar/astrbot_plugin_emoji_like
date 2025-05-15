@@ -30,7 +30,7 @@ emotions_dict = {
     "astrbot_plugin_emoji_like",
     "Zhalslar",
     "调用LLM判断消息的情感，智能地给消息贴QQ表情",
-    "1.0.0",
+    "1.0.1",
     "https://github.com/Zhalslar/astrbot_plugin_emoji_like",
 )
 class MyPlugin(Star):
@@ -81,12 +81,13 @@ class MyPlugin(Star):
 
         """
         chain = event.get_messages()
-        random_num = random.random()
+        if not chain:
+            return
         if isinstance(chain[0], At):
-            if random_num > self.at_analysis_prob:
+            if random.random() > self.at_analysis_prob:
                 return
         else:
-            if random_num > self.normal_analysis_prob:
+            if random.random() > self.normal_analysis_prob:
                 return
         text = event.get_message_str()
         if not text:
@@ -98,9 +99,12 @@ class MyPlugin(Star):
         for keyword in self.emotion_keywords:
             if keyword in emotion:
                 emoji_id = random.choice(self.emotions_dict[keyword])
-                await event.bot.set_msg_emoji_like(
-                    message_id=message_id, emoji_id=emoji_id, set=True
-                )
+                try:
+                    await event.bot.set_msg_emoji_like(
+                        message_id=message_id, emoji_id=emoji_id, set=True
+                    )
+                except Exception as e:
+                    logger.warning(f"设置表情失败: {e}")
                 break
         if not isinstance(chain[0], At):
             event.stop_event()
