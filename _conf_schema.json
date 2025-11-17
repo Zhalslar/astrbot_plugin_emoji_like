@@ -1,14 +1,42 @@
 {
-    "analysis_prob": {
-        "description": "对普通消息进行情感分析的概率",
+    "judge_provider_id": {
+        "description": "判断情感用的LLM提供商",
+        "type": "string",
+        "default": "",
+        "hint": "留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商",
+        "_special": "select_provider"
+    },
+    "wake_analysis_prob": {
+        "description": "对唤醒bot的消息进行情感分析的概率",
+        "type": "float",
+        "hint": "范围：0-1",
+        "default": 0.1
+    },
+    "normal_analysis_prob": {
+        "description": "对其他普通消息进行情感分析的概率",
         "type": "float",
         "hint": "范围：0-1",
         "default": 0.01
     },
-    "at_analysis_prob": {
-        "description": "对回复@消息进行情感分析的概率",
-        "type": "float",
-        "hint": "范围：0-1",
-        "default": 0.1
+    "emotions_mapping": {
+        "description": "情感映射表",
+        "hint": "根据情感关键词映射到表情ID(采用列表模式进行编辑)，如果你不清楚各个ID所对应的表情，请使用 astrbot_plugin_multimsg 插件查看，命令为：face <ID范围>",
+        "type": "list",
+        "default": [
+            "开心：2 74 109 272 295 305 318 319 324 339",
+            "得意：4 16 28 29 99 101 178 269 270 277 283 299 307 336 426",
+            "害羞：6 20 21",
+            "难过：5 34 35 36 37 173 264 265 267 425",
+            "纠结：106 176 262 263 270",
+            "生气：11 26 31 105",
+            "惊讶：3 325",
+            "疑惑：32 268",
+            "恳求：111 353",
+            "可怕：1 286",
+            "尴尬：100 306 342 344 347",
+            "无语：46 97 181 271 281 284 287 312 352 357 427",
+            "恶心：19 59 323",
+            "无聊：8 25 285 293"
+        ]
     }
 }

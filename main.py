@@ -1,53 +1,41 @@
 import asyncio
 import random
+
 from astrbot.api import logger
+from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import At
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
-from astrbot.api.event import filter
+from astrbot.core.provider.provider import Provider
 
-emotions_dict = {
-    "开心": [2, 74, 109, 272, 295, 305, 318, 319, 324, 339],
-    "得意": [4, 16, 28, 29, 99, 101, 178, 269, 270, 277, 283, 299, 307, 336, 426],
-    "害羞": [6, 20, 21],
-    "难过": [5, 34, 35, 36, 37, 173, 264, 265, 267, 425],
-    "纠结": [106, 176, 262, 263, 270],
-    "生气": [11, 26, 31, 105],
-    "惊讶": [3, 325],
-    "疑惑": [32, 268],
-    "恳求": [111, 353],
-    "可怕": [1, 286],
-    "尴尬": [100, 306, 342, 344, 347],
-    "无语": [46, 97, 181, 271, 281, 284, 287, 312, 352, 357, 427],
-    "恶心": [19, 59, 323],
-    "无聊": [8, 25, 285, 293],
-}
 
-@register(
-    "astrbot_plugin_emoji_like",
-    "Zhalslar",
-    "调用LLM判断消息的情感，智能地给消息贴QQ表情",
-    "1.0.1",
-    "https://github.com/Zhalslar/astrbot_plugin_emoji_like",
-)
-class MyPlugin(Star):
+@register("astrbot_plugin_emoji_like", "Zhalslar", "...", "...")
+class EmojiLikePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        self.config = config
         # 情感映射表
-        self.emotions_dict: dict[str, list[int]] = emotions_dict
+        self.emotions_mapping: dict[str, list[int]] = self.parse_emotions_mapping_list(
+            self.config["emotions_mapping"]
+        )
         # 可用情感关键字
-        self.emotion_keywords: list[str] = list(self.emotions_dict.keys())
-        # 对普通消息进行情感分析的概率
-        self.normal_analysis_prob: float = config.get("normal_analysis_prob", 0.01)
-        # 对@消息进行情感分析的概率
-        self.at_analysis_prob: float = config.get("at_analysis_prob", 0.1)
+        self.emotion_keywords: list[str] = list(self.emotions_mapping.keys())
+
+    @staticmethod
+    def parse_emotions_mapping_list(emotions_list: list[str]) -> dict[str, list[int]]:
+        """解析字符串列表为字典"""
+        emotions_dict = {}
+        for item in emotions_list:
+            emotion, values = item.split("：")
+            emotions_dict[emotion] = list(map(int, values.split()))
+        return emotions_dict
 
     @filter.command("贴表情")
     async def replyMessage(self, event: AiocqhttpMessageEvent, emojiNum: int = 5):
-        """/贴表情 数量"""
+        """贴表情 <数量>"""
         reply_text = next(
             (msg.text for msg in event.message_obj.message if msg.type == "Reply"), None  # type: ignore
         )
@@ -62,7 +50,7 @@ class MyPlugin(Star):
         emoji_ids = []
         for keyword in self.emotion_keywords:
             if keyword in emotion:
-                emoji_ids = self.emotions_dict[keyword]
+                emoji_ids = self.emotions_mapping[keyword]
                 break
 
         selected_emoji_ids = random.sample(emoji_ids, k=min(emojiNum, len(emoji_ids)))
@@ -83,26 +71,27 @@ class MyPlugin(Star):
         chain = event.get_messages()
         if not chain:
             return
-        if isinstance(chain[0], At):
-            if random.random() > self.at_analysis_prob:
+        if event.is_at_or_wake_command:
+            if random.random() > self.config["wake_analysis_prob"]:
                 return
         else:
-            if random.random() > self.normal_analysis_prob:
+            if random.random() > self.config["normal_analysis_prob"]:
                 return
-        text = event.get_message_str()
-        if not text:
+        message_str = event.get_message_str()
+        if not message_str:
             return
 
-        emotion = await self.judge_emotion(text)
+        emotion = await self.judge_emotion(message_str)
         message_id = event.message_obj.message_id
 
         for keyword in self.emotion_keywords:
             if keyword in emotion:
-                emoji_id = random.choice(self.emotions_dict[keyword])
+                emoji_id = random.choice(self.emotions_mapping[keyword])
                 try:
                     await event.bot.set_msg_emoji_like(
                         message_id=message_id, emoji_id=emoji_id, set=True
                     )
+                    logger.info(f"触发贴表情: [{keyword}{emoji_id}] -> {message_str}")
                 except Exception as e:
                     logger.warning(f"设置表情失败: {e}")
                 break
@@ -113,13 +102,21 @@ class MyPlugin(Star):
         """让LLM判断语句的情感"""
 
         system_prompt = f"你是一个情感分析专家，请根据给定的文本判断其情感倾向，并给出相应的一个最符合的情感标签，可选标签有：{self.emotion_keywords}"
+        prompt = "这是要分析的文本：" + text
 
+        judge_provider = (
+            self.context.get_provider_by_id(self.config["judge_provider_id"])
+            or self.context.get_using_provider()
+        )
+
+        if not isinstance(judge_provider, Provider):
+            raise Exception("未找到可用的 LLM 提供商")
         try:
-            llm_response = await self.context.get_using_provider().text_chat(
-                prompt="这是要分析的文本：" + text,
-                system_prompt=system_prompt,
-                image_urls=[],
-                func_tool=self.context.get_llm_tool_manager(),
+            logger.debug(
+                f"使用{judge_provider.model_name}开始进行情感分析: {system_prompt} {prompt}"
+            )
+            llm_response = await judge_provider.text_chat(
+                system_prompt=system_prompt, prompt=prompt
             )
 
             return llm_response.completion_text.strip()
