@@ -5,11 +5,13 @@ from astrbot.api import logger
 from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
+from astrbot.core.config.default import VERSION
 from astrbot.core.message.components import At
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
 from astrbot.core.provider.provider import Provider
+from astrbot.core.utils.version_comparator import VersionComparator
 
 
 @register("astrbot_plugin_emoji_like", "Zhalslar", "...", "...")
@@ -17,6 +19,9 @@ class EmojiLikePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
+        # 检查版本
+        if not VersionComparator.compare_version(VERSION, "4.0.0") >= 0:
+            raise Exception("AstrBot 版本过低, 请升级至 4.0.0 或更高版本")
         # 情感映射表
         self.emotions_mapping: dict[str, list[int]] = self.parse_emotions_mapping_list(
             self.config["emotions_mapping"]
