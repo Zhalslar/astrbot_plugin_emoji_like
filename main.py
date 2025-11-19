@@ -42,15 +42,17 @@ class EmojiLikePlugin(Star):
     async def replyMessage(self, event: AiocqhttpMessageEvent, emojiNum: int = 5):
         """贴表情 <数量>"""
         reply_text = next(
-            (msg.text for msg in event.message_obj.message if msg.type == "Reply"), None  # type: ignore
+            (msg.text for msg in event.message_obj.message if msg.type == "Reply"),
+            None,  # type: ignore
         )
         if not reply_text:
             return
         message_id = next(
-            (msg.id for msg in event.message_obj.message if msg.type == "Reply"), None  # type: ignore
+            (msg.id for msg in event.message_obj.message if msg.type == "Reply"),
+            None,  # type: ignore
         )
 
-        emotion = await self.judge_emotion(reply_text)
+        emotion = await self.judge_emotion(event, reply_text)
 
         emoji_ids = []
         for keyword in self.emotion_keywords:
@@ -86,7 +88,7 @@ class EmojiLikePlugin(Star):
         if not message_str:
             return
 
-        emotion = await self.judge_emotion(message_str)
+        emotion = await self.judge_emotion(event, message_str)
         message_id = event.message_obj.message_id
 
         for keyword in self.emotion_keywords:
@@ -103,16 +105,15 @@ class EmojiLikePlugin(Star):
         if not isinstance(chain[0], At):
             event.stop_event()
 
-    async def judge_emotion(self, text: str):
+    async def judge_emotion(self, event: AiocqhttpMessageEvent, text: str):
         """让LLM判断语句的情感"""
 
         system_prompt = f"你是一个情感分析专家，请根据给定的文本判断其情感倾向，并给出相应的一个最符合的情感标签，可选标签有：{self.emotion_keywords}"
         prompt = "这是要分析的文本：" + text
 
-        judge_provider = (
-            self.context.get_provider_by_id(self.config["judge_provider_id"])
-            or self.context.get_using_provider()
-        )
+        judge_provider = self.context.get_provider_by_id(
+            self.config["judge_provider_id"]
+        ) or self.context.get_using_provider(event.unified_msg_origin)
 
         if not isinstance(judge_provider, Provider):
             raise Exception("未找到可用的 LLM 提供商")
@@ -128,5 +129,3 @@ class EmojiLikePlugin(Star):
         except Exception as e:
             logger.error(f"情感分析失败: {e}")
             return "其他"
-
-
