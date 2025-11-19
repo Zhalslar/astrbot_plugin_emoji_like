@@ -6,7 +6,7 @@ from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.config.default import VERSION
-from astrbot.core.message.components import At
+from astrbot.core.message.components import At, Image, Plain, Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
@@ -41,18 +41,23 @@ class EmojiLikePlugin(Star):
     @filter.command("贴表情")
     async def replyMessage(self, event: AiocqhttpMessageEvent, emojiNum: int = 5):
         """贴表情 <数量>"""
-        reply_text = next(
-            (msg.text for msg in event.message_obj.message if msg.type == "Reply"),
-            None,  # type: ignore
-        )
-        if not reply_text:
+        chain = event.get_messages()
+        if not chain:
             return
-        message_id = next(
-            (msg.id for msg in event.message_obj.message if msg.type == "Reply"),
-            None,  # type: ignore
-        )
+        seg = chain[0] if isinstance(chain[0], Reply) else None
+        if not seg or not seg.chain:
+            return
+        text = seg.text
+        message_id = seg.id
+        images = []
+        for reply_seg in seg.chain:
+            if isinstance(reply_seg, Image):
+                images.append(reply_seg)
 
-        emotion = await self.judge_emotion(event, reply_text)
+        if not text or not message_id:
+            return
+
+        emotion = await self.judge_emotion(event, text, images)
 
         emoji_ids = []
         for keyword in self.emotion_keywords:
@@ -60,13 +65,20 @@ class EmojiLikePlugin(Star):
                 emoji_ids = self.emotions_mapping[keyword]
                 break
 
-        selected_emoji_ids = random.sample(emoji_ids, k=min(emojiNum, len(emoji_ids)))
+        # 如果情感未命中或数量不足，用 1-433 随机补
+        if not emoji_ids:
+            emoji_ids = list(range(1, 434))
+        need = min(emojiNum, 20)
+        selected_emoji_ids = random.sample(emoji_ids, k=min(need, len(emoji_ids)))
+        while len(selected_emoji_ids) < need:
+            selected_emoji_ids.append(random.randint(1, 433))
 
+        logger.info(f"选中的表情ID列表: {selected_emoji_ids}, 正在贴表情({len(selected_emoji_ids)}个)...")
         for emoji_id in selected_emoji_ids:
             await event.bot.set_msg_emoji_like(
                 message_id=message_id, emoji_id=emoji_id, set=True
             )
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(self.config["emoji_interval"])
         event.stop_event()
 
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
@@ -105,7 +117,7 @@ class EmojiLikePlugin(Star):
         if not isinstance(chain[0], At):
             event.stop_event()
 
-    async def judge_emotion(self, event: AiocqhttpMessageEvent, text: str):
+    async def judge_emotion(self, event: AiocqhttpMessageEvent, text: str, image_urls:list[str] | None = None):
         """让LLM判断语句的情感"""
 
         system_prompt = f"你是一个情感分析专家，请根据给定的文本判断其情感倾向，并给出相应的一个最符合的情感标签，可选标签有：{self.emotion_keywords}"
@@ -122,7 +134,9 @@ class EmojiLikePlugin(Star):
                 f"使用{judge_provider.model_name}开始进行情感分析: {system_prompt} {prompt}"
             )
             llm_response = await judge_provider.text_chat(
-                system_prompt=system_prompt, prompt=prompt
+                system_prompt=system_prompt,
+                prompt=prompt,
+                image_urls=image_urls,
             )
 
             return llm_response.completion_text.strip()

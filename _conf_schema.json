@@ -3,7 +3,7 @@
         "description": "判断情感用的LLM提供商",
         "type": "string",
         "default": "",
-        "hint": "留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商",
+        "hint": "留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商。 tip:工作较为简单，建议用稳定的智谱",
         "_special": "select_provider"
     },
     "wake_analysis_prob": {
@@ -17,6 +17,12 @@
         "type": "float",
         "hint": "范围：0-1",
         "default": 0.01
+    },
+    "emoji_interval": {
+        "description": "贴表情的时间间隔（秒）",
+        "hint": "贴多个表情时，每个表情之间的时间间隔",
+        "type": "float",
+        "default": 0.2       
     },
     "emotions_mapping": {
         "description": "情感映射表",
