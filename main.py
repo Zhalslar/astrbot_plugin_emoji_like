@@ -6,7 +6,7 @@ from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.config.default import VERSION
-from astrbot.core.message.components import At, Image, Plain, Reply
+from astrbot.core.message.components import Image, Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
@@ -73,7 +73,9 @@ class EmojiLikePlugin(Star):
         while len(selected_emoji_ids) < need:
             selected_emoji_ids.append(random.randint(1, 433))
 
-        logger.info(f"选中的表情ID列表: {selected_emoji_ids}, 正在贴表情({len(selected_emoji_ids)}个)...")
+        logger.info(
+            f"选中的表情ID列表: {selected_emoji_ids}, 正在贴表情({len(selected_emoji_ids)}个)..."
+        )
         for emoji_id in selected_emoji_ids:
             await event.bot.set_msg_emoji_like(
                 message_id=message_id, emoji_id=emoji_id, set=True
@@ -114,10 +116,13 @@ class EmojiLikePlugin(Star):
                 except Exception as e:
                     logger.warning(f"设置表情失败: {e}")
                 break
-        if not isinstance(chain[0], At):
-            event.stop_event()
 
-    async def judge_emotion(self, event: AiocqhttpMessageEvent, text: str, image_urls:list[str] | None = None):
+    async def judge_emotion(
+        self,
+        event: AiocqhttpMessageEvent,
+        text: str,
+        image_urls: list[str] | None = None,
+    ):
         """让LLM判断语句的情感"""
 
         system_prompt = f"你是一个情感分析专家，请根据给定的文本判断其情感倾向，并给出相应的一个最符合的情感标签，可选标签有：{self.emotion_keywords}"
