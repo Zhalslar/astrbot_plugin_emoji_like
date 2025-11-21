@@ -1,4 +1,10 @@
 {
+    "emoji_follow": {
+        "description": "表情跟随",
+        "hint":"用户的消息中含有表情时，bot将自动为这条消息贴上对应的表情",
+        "type": "bool",
+        "default": true
+    },
     "judge_provider_id": {
         "description": "判断情感用的LLM提供商",
         "type": "string",
@@ -9,20 +15,20 @@
     "wake_analysis_prob": {
         "description": "对唤醒bot的消息进行情感分析的概率",
         "type": "float",
-        "hint": "范围：0-1",
-        "default": 0.1
+        "hint": "范围：0-1, 如果发现消息经常被贴表情中断，可将此项设为0来防止",
+        "default": 0.02
     },
     "normal_analysis_prob": {
         "description": "对其他普通消息进行情感分析的概率",
         "type": "float",
-        "hint": "范围：0-1",
+        "hint": "范围：0-1， 设太高群友会很烦，设太低则难以触发贴表情",
         "default": 0.01
     },
     "emoji_interval": {
         "description": "贴表情的时间间隔（秒）",
-        "hint": "贴多个表情时，每个表情之间的时间间隔",
+        "hint": "贴多个表情时，每个表情之间的时间间隔，适当间隔比较自然，符合真人感",
         "type": "float",
-        "default": 0.2       
+        "default": 0.4       
     },
     "emotions_mapping": {
         "description": "情感映射表",

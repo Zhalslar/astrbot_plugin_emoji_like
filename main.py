@@ -6,7 +6,7 @@ from astrbot.api.event import filter
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.config.default import VERSION
-from astrbot.core.message.components import Image, Reply
+from astrbot.core.message.components import Face, Image, Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
@@ -86,31 +86,50 @@ class EmojiLikePlugin(Star):
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def on_message(self, event: AiocqhttpMessageEvent):
         """
-        监听群消息，并进行情感分析
-
+        监听群消息
         """
         chain = event.get_messages()
         if not chain:
             return
+        message_str = event.get_message_str()
+        if not message_str:
+            return
+
+        # 按表情来贴表情
+        if self.config["emoji_follow"]:
+            face_segs = [seg for seg in chain if isinstance(seg, Face)]
+            if face_segs:
+                for face_seg in face_segs:
+                    emoji_id = face_seg.id
+                    try:
+                        await event.bot.set_msg_emoji_like(
+                            message_id=event.message_obj.message_id,
+                            emoji_id=emoji_id,
+                            set=True,
+                        )
+                        logger.info(f"触发贴表情: [{emoji_id}] -> {message_str}")
+                    except Exception as e:
+                        logger.warning(f"设置表情失败: {e}")
+                    await asyncio.sleep(self.config["emoji_interval"])
+
+        # 按概率分析情感来贴表情
         if event.is_at_or_wake_command:
             if random.random() > self.config["wake_analysis_prob"]:
                 return
         else:
             if random.random() > self.config["normal_analysis_prob"]:
                 return
-        message_str = event.get_message_str()
-        if not message_str:
-            return
-
+        # 判断感情
         emotion = await self.judge_emotion(event, message_str)
-        message_id = event.message_obj.message_id
 
         for keyword in self.emotion_keywords:
             if keyword in emotion:
                 emoji_id = random.choice(self.emotions_mapping[keyword])
                 try:
                     await event.bot.set_msg_emoji_like(
-                        message_id=message_id, emoji_id=emoji_id, set=True
+                        message_id=event.message_obj.message_id,
+                        emoji_id=emoji_id,
+                        set=True,
                     )
                     logger.info(f"触发贴表情: [{keyword}{emoji_id}] -> {message_str}")
                 except Exception as e:
