@@ -96,45 +96,42 @@ class EmojiLikePlugin(Star):
             return
 
         # 按表情来贴表情
-        if self.config["emoji_follow"]:
-            face_segs = [seg for seg in chain if isinstance(seg, Face)]
-            if face_segs:
-                for face_seg in face_segs:
-                    emoji_id = face_seg.id
-                    try:
-                        await event.bot.set_msg_emoji_like(
-                            message_id=event.message_obj.message_id,
-                            emoji_id=emoji_id,
-                            set=True,
-                        )
-                        logger.info(f"触发贴表情: [{emoji_id}] -> {message_str}")
-                    except Exception as e:
-                        logger.warning(f"设置表情失败: {e}")
-                    await asyncio.sleep(self.config["emoji_interval"])
-
-        # 按概率分析情感来贴表情
-        if event.is_at_or_wake_command:
-            if random.random() > self.config["wake_analysis_prob"]:
-                return
-        else:
-            if random.random() > self.config["normal_analysis_prob"]:
-                return
-        # 判断感情
-        emotion = await self.judge_emotion(event, message_str)
-
-        for keyword in self.emotion_keywords:
-            if keyword in emotion:
-                emoji_id = random.choice(self.emotions_mapping[keyword])
+        face_segs = [seg for seg in chain if isinstance(seg, Face)]
+        if face_segs and random.random() < self.config["emoji_follow"]:
+            for face_seg in face_segs:
+                emoji_id = face_seg.id
                 try:
                     await event.bot.set_msg_emoji_like(
                         message_id=event.message_obj.message_id,
                         emoji_id=emoji_id,
                         set=True,
                     )
-                    logger.info(f"触发贴表情: [{keyword}{emoji_id}] -> {message_str}")
+                    logger.info(f"触发贴表情: [{emoji_id}] -> {message_str}")
                 except Exception as e:
                     logger.warning(f"设置表情失败: {e}")
-                break
+                await asyncio.sleep(self.config["emoji_interval"])
+
+        # 按概率分析情感来贴表情
+        prob = (
+            self.config["wake_analysis_prob"]
+            if event.is_at_or_wake_command
+            else self.config["normal_analysis_prob"]
+        )
+        if random.random() < prob:
+            emotion = await self.judge_emotion(event, message_str)
+            for keyword in self.emotion_keywords:
+                if keyword in emotion:
+                    emoji_id = random.choice(self.emotions_mapping[keyword])
+                    try:
+                        await event.bot.set_msg_emoji_like(
+                            message_id=event.message_obj.message_id,
+                            emoji_id=emoji_id,
+                            set=True,
+                        )
+                        logger.info(f"触发贴表情: [{keyword}{emoji_id}] -> {message_str}")
+                    except Exception as e:
+                        logger.warning(f"设置表情失败: {e}")
+                    break
 
     async def judge_emotion(
         self,
