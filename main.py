@@ -1,5 +1,6 @@
 import asyncio
 import random
+from typing import Final
 
 from astrbot.api import logger
 from astrbot.api.event import filter
@@ -22,6 +23,10 @@ class EmojiLikePlugin(Star):
     - 所有路径弱一致、可降级
     """
 
+    # ---------- 1. 表情号段常量 ----------
+    EMOJI_RANGE_START: Final[int] = 1  # 范围起点
+    EMOJI_RANGE_END: Final[int] = 434  # 范围终点（不含）
+
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
@@ -31,6 +36,8 @@ class EmojiLikePlugin(Star):
             self.config.get("emotions_mapping", [])
         )
         self.emotion_keywords: list[str] = list(self.emotions_mapping.keys())
+        # 表情池
+        self.emoji_pool = list(range(self.EMOJI_RANGE_START, self.EMOJI_RANGE_END))
 
     @staticmethod
     def parse_emotions_mapping_list(
@@ -47,7 +54,6 @@ class EmojiLikePlugin(Star):
             except Exception:
                 logger.warning(f"无法解析情感映射项: {item}")
         return result
-
 
     def select_emoji_ids(
         self,
@@ -70,8 +76,7 @@ class EmojiLikePlugin(Star):
         return self._select_random(need)
 
     def _select_random(self, need: int) -> list[int]:
-        pool = list(range(1, 434))
-        return random.sample(pool, k=min(need, len(pool)))
+        return random.sample(self.emoji_pool, k=min(need, len(self.emoji_pool)))
 
     def _select_by_emotion(
         self,
@@ -87,7 +92,7 @@ class EmojiLikePlugin(Star):
                 if pool:
                     selected = random.sample(pool, k=min(need, len(pool)))
                     while len(selected) < need:
-                        selected.append(random.randint(1, 434))
+                        selected.append(random.choice(self.emoji_pool))
                     return selected
 
         return self._select_random(need)
@@ -134,7 +139,6 @@ class EmojiLikePlugin(Star):
             await asyncio.sleep(self.config.get("emoji_interval", 0.5))
 
         event.stop_event()
-
 
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def on_message(self, event: AiocqhttpMessageEvent):
