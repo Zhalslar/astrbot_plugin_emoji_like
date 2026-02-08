@@ -1,5 +1,5 @@
 {
-    "emoji_follow": {
+    "emoji_follow_prob": {
         "description": "表情跟随概率",
         "hint": "用户的消息中含有表情时，bot将按概率自动为这条消息贴上对应的表情",
         "type": "float",
@@ -21,15 +21,11 @@
         },
         "default": 0.03
     },
-    "emoji_select_strategy": {
-        "description": "表情选用策略",
-        "type": "string",
-        "hint": "random: 随机选择一个表情。emotion_llm: 调用 LLM 根据情感来选",
-        "options": [
-            "random",
-            "emotion_llm"
-        ],
-        "default": "emotion_llm"
+    "llm_select": {
+        "description": "LLM选表情",
+        "hint": "开启后，触发贴表情时调用 LLM 来判断消息的情感，根据情感来选一个表情。关闭则回退为随机表情",
+        "type": "bool",
+        "default": true
     },
     "judge_provider_id": {
         "description": "判断情感用的LLM提供商",
@@ -38,18 +34,7 @@
         "hint": "策略选为‘emotion_llm’时此项生效。留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商。 tip:工作较为简单，建议用稳定的智谱",
         "_special": "select_provider"
     },
-    "emoji_interval": {
-        "description": "贴表情的时间间隔（秒）",
-        "hint": "贴多个表情时，每个表情之间的时间间隔，适当间隔比较自然，符合真人感",
-        "type": "float",
-        "slider": {
-            "min": 0,
-            "max": 3,
-            "step": 0.1
-        },
-        "default": 0.4
-    },
-    "emotions_mapping": {
+    "emotions_mapping_list": {
         "description": "情感映射表",
         "hint": "根据情感关键词映射到表情ID(采用列表模式进行编辑)，如果你不清楚各个ID所对应的表情，请使用 astrbot_plugin_multimsg 插件查看，命令为：face <ID范围>",
         "type": "list",
@@ -69,5 +54,16 @@
             "恶心：19 59 323",
             "无聊：8 25 285 293"
         ]
+    },
+    "emoji_interval": {
+        "description": "贴表情的时间间隔（秒）",
+        "hint": "贴多个表情时，每个表情之间的时间间隔，适当间隔比较自然，符合真人感",
+        "type": "float",
+        "slider": {
+            "min": 0,
+            "max": 3,
+            "step": 0.1
+        },
+        "default": 0.4
     }
 }

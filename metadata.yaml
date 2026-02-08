@@ -1,6 +1,6 @@
 name: astrbot_plugin_emoji_like
 display_name: 智能贴表情
-desc: 调用LLM判断消息的情感，智能地给消息贴上QQ表情
-version: v1.1.3
+desc: 调用LLM判断消息的情感, 智能地给消息贴上QQ表情
+version: v1.2.0
 author: Zhalslar
 repo: https://github.com/Zhalslar/astrbot_plugin_emoji_like
