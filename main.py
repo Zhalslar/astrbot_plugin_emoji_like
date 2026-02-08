@@ -61,7 +61,8 @@ class EmojiLikePlugin(Star):
     ):
         logger.info(f"贴表情: {emoji_ids}")
         message_id = message_id or event.message_obj.message_id
-        for emoji_id in emoji_ids:
+        emoji_ids = emoji_ids[: self.cfg.max_emoji_count]
+        for emoji_id in set(emoji_ids):
             try:
                 await event.bot.set_msg_emoji_like(
                     message_id=message_id,

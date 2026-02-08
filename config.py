@@ -123,6 +123,7 @@ class PluginConfig(ConfigNode):
         self.data_dir = StarTools.get_data_dir(self._plugin_name)
         self.plugin_dir = Path(get_astrbot_plugin_path()) / self._plugin_name
 
+        self.max_emoji_count = 20
         self.min_emoji_id = 1
         self.max_emoji_id = 434
         self.emoji_pool = list(range(self.min_emoji_id, self.max_emoji_id))
@@ -144,6 +145,7 @@ class PluginConfig(ConfigNode):
         return result
 
     def get_emoji_ids(self, emotion: str | None, need_count: int) -> list[int]:
+        need_count = min(need_count, self.max_emoji_count)
         if self.llm_select and emotion:
             for keyword in self.emotion_keywords:
                 if keyword in emotion:
@@ -152,4 +154,4 @@ class PluginConfig(ConfigNode):
                         while len(selected) < need_count:
                             selected.append(random.choice(self.emoji_pool))
                         return selected
-        return random.sample(self.emoji_pool, k=min(need_count, 20))
+        return random.sample(self.emoji_pool, k=need_count)
