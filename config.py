@@ -1,0 +1,155 @@
+# config.py
+from __future__ import annotations
+
+from pathlib import Path
+from collections.abc import Mapping, MutableMapping
+import random
+from types import MappingProxyType, UnionType
+from typing import Any, Union, get_args, get_origin, get_type_hints
+
+from astrbot.api import logger
+from astrbot.core.config.astrbot_config import AstrBotConfig
+from astrbot.core.star.star_tools import StarTools
+from astrbot.core.utils.astrbot_path import get_astrbot_plugin_path
+
+
+class ConfigNode:
+    """
+    配置节点, 把 dict 变成强类型对象。
+
+    规则：
+    - schema 来自子类类型注解
+    - 声明字段：读写，写回底层 dict
+    - 未声明字段和下划线字段：仅挂载属性，不写回
+    - 支持 ConfigNode 多层嵌套（lazy + cache）
+    """
+
+    _SCHEMA_CACHE: dict[type, dict[str, type]] = {}
+    _FIELDS_CACHE: dict[type, set[str]] = {}
+
+    @classmethod
+    def _schema(cls) -> dict[str, type]:
+        return cls._SCHEMA_CACHE.setdefault(cls, get_type_hints(cls))
+
+    @classmethod
+    def _fields(cls) -> set[str]:
+        return cls._FIELDS_CACHE.setdefault(
+            cls,
+            {k for k in cls._schema() if not k.startswith("_")},
+        )
+
+    @staticmethod
+    def _is_optional(tp: type) -> bool:
+        if get_origin(tp) in (Union, UnionType):
+            return type(None) in get_args(tp)
+        return False
+
+    def __init__(self, data: MutableMapping[str, Any]):
+        object.__setattr__(self, "_data", data)
+        object.__setattr__(self, "_children", {})
+        for key, tp in self._schema().items():
+            if key.startswith("_"):
+                continue
+            if key in data:
+                continue
+            if hasattr(self.__class__, key):
+                continue
+            if self._is_optional(tp):
+                continue
+            logger.warning(f"[config:{self.__class__.__name__}] 缺少字段: {key}")
+
+    def __getattr__(self, key: str) -> Any:
+        if key in self._fields():
+            value = self._data.get(key)
+            tp = self._schema().get(key)
+
+            if isinstance(tp, type) and issubclass(tp, ConfigNode):
+                children: dict[str, ConfigNode] = self.__dict__["_children"]
+                if key not in children:
+                    if not isinstance(value, MutableMapping):
+                        raise TypeError(
+                            f"[config:{self.__class__.__name__}] "
+                            f"字段 {key} 期望 dict，实际是 {type(value).__name__}"
+                        )
+                    children[key] = tp(value)
+                return children[key]
+
+            return value
+
+        if key in self.__dict__:
+            return self.__dict__[key]
+
+        raise AttributeError(key)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key in self._fields():
+            self._data[key] = value
+            return
+        object.__setattr__(self, key, value)
+
+    def raw_data(self) -> Mapping[str, Any]:
+        """
+        底层配置 dict 的只读视图
+        """
+        return MappingProxyType(self._data)
+
+    def save_config(self) -> None:
+        """
+        保存配置到磁盘（仅允许在根节点调用）
+        """
+        if not isinstance(self._data, AstrBotConfig):
+            raise RuntimeError(
+                f"{self.__class__.__name__}.save_config() 只能在根配置节点上调用"
+            )
+        self._data.save_config()
+
+
+# ============ 插件自定义配置 ==================
+
+
+class PluginConfig(ConfigNode):
+    emoji_follow_prob: float
+    emoji_like_prob: float
+    llm_select: bool
+    judge_provider_id: str
+    emoji_interval: float
+    emotions_mapping_list: list[str]
+
+    _plugin_name = "astrbot_plugin_emoji_like"
+
+    def __init__(self, cfg: AstrBotConfig):
+        super().__init__(cfg)
+
+        self.data_dir = StarTools.get_data_dir(self._plugin_name)
+        self.plugin_dir = Path(get_astrbot_plugin_path()) / self._plugin_name
+
+        self.min_emoji_id = 1
+        self.max_emoji_id = 434
+        self.emoji_pool = list(range(self.min_emoji_id, self.max_emoji_id))
+
+        self.emotion_mapping = self.parse_mapping_list()
+        self.emotion_keywords: list[str] = list(self.emotion_mapping.keys())
+
+    def parse_mapping_list(self) -> dict[str, list[int]]:
+        """
+        ["开心：1 2 3", "愤怒：4 5"] -> {"开心": [1,2,3], "愤怒": [4,5]}
+        """
+        result: dict[str, list[int]] = {}
+        for item in self.emotions_mapping_list:
+            try:
+                emotion, values = item.split("：", 1)
+                result[emotion.strip()] = list(map(int, values.split()))
+            except Exception:
+                logger.warning(f"无法解析情感映射项: {item}")
+        return result
+
+    def get_emoji_ids(self, emotion: str | None, need_count: int) -> list[int]:
+        if self.llm_select and emotion:
+            for keyword in self.emotion_keywords:
+                if keyword in emotion:
+                    if pool := self.emotion_mapping.get(keyword):
+                        selected = random.sample(pool, k=min(need_count, len(pool)))
+                        while len(selected) < need_count:
+                            selected.append(random.choice(self.emoji_pool))
+                        return selected
+        return random.sample(self.emoji_pool, k=min(need_count, 20))

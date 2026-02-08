@@ -5,7 +5,7 @@
 
 # astrbot_plugin_emoji_like
 
-_✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 贴表情插件 ✨_  
+_✨ 智能贴表情 ✨_  
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -20,16 +20,8 @@ _✨ [astrbot](https://github.com/AstrBotDevs/AstrBot) 贴表情插件 ✨_
 
 ## 📦 安装
 
-- 可以直接在astrbot的插件市场搜索astrbot_plugin_emoji_like，点击安装，耐心等待安装完成即可
-- 若是安装失败，可以尝试直接克隆源码：
+在astrbot的插件市场搜索astrbot_plugin_emoji_like，点击安装即可
 
-```bash
-# 克隆仓库到插件目录
-cd /AstrBot/data/plugins
-git clone https://github.com/Zhalslar/astrbot_plugin_emoji_like
-
-# 控制台重启AstrBot
-```
 
 ## ⌨️ 使用说明
 
@@ -38,7 +30,7 @@ git clone https://github.com/Zhalslar/astrbot_plugin_emoji_like
 |     命令      |        说明         |
 |:-------------:|:----------------------------:|
 | {一条消息}     | 概率触发贴表情，触发概率可在配置里设置  |
-| /贴表情 数量  | 若不填数量，则默认贴5个    |
+| 贴表情 <数量>  | 若不填数量，则默认贴5个    |
 
 ### 示例图
 
