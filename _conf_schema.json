@@ -21,12 +21,6 @@
         },
         "default": 0.03
     },
-    "llm_select": {
-        "description": "LLM选表情",
-        "hint": "开启后，触发贴表情时调用 LLM 来判断消息的情感，根据情感来选一个表情。关闭则回退为随机表情",
-        "type": "bool",
-        "default": true
-    },
     "judge_provider_id": {
         "description": "判断情感用的LLM提供商",
         "type": "string",

@@ -9,51 +9,18 @@ from astrbot.core.message.components import Face, Image, Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
 )
-from astrbot.core.provider.provider import Provider
 
-from .config import PluginConfig
+from .core.config import PluginConfig
+from .core.emotion import EmotionJudger
 
 
 class EmojiLikePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        self.cfg = PluginConfig(config)
+        self.cfg = PluginConfig(config, context)
+        self.judger = EmotionJudger(self.cfg)
 
-    async def judge_emotion(
-        self,
-        event: AiocqhttpMessageEvent,
-        text: str,
-        image_urls: list[str] | None = None,
-    ) -> str:
-        """LLM 情感判断"""
-        if not self.cfg.llm_select:
-            return "其他"
-        system_prompt = (
-            "你是一个情感分析专家，请判断文本情感，"
-            f"只能从以下标签中选择一个：{self.cfg.emotion_keywords}"
-        )
-        prompt = f"文本内容：{text}"
-
-        provider = self.context.get_provider_by_id(
-            self.cfg.judge_provider_id
-        ) or self.context.get_using_provider(event.unified_msg_origin)
-
-        if not isinstance(provider, Provider):
-            logger.error("未找到可用的 LLM Provider")
-            return "其他"
-
-        try:
-            resp = await provider.text_chat(
-                system_prompt=system_prompt,
-                prompt=prompt,
-                image_urls=image_urls,
-            )
-            return resp.completion_text.strip()
-        except Exception as e:
-            logger.error(f"情感分析失败: {e}")
-            return "其他"
-
-    async def emoji_like(
+    async def _emoji_like(
         self,
         event: AiocqhttpMessageEvent,
         emoji_ids: list[int],
@@ -86,9 +53,14 @@ class EmojiLikePlugin(Star):
 
         images = [seg.url for seg in reply.chain if isinstance(seg, Image) and seg.url]
 
-        emotion = await self.judge_emotion(event, reply.text, images)
+        emotion = await self.judger.judge_emotion(
+            event,
+            text=reply.text,
+            image_urls=images,
+            labels=self.cfg.emotion_labels,
+        )
         emoji_ids = self.cfg.get_emoji_ids(emotion, need_count=int(emojiNum))
-        await self.emoji_like(event, emoji_ids, message_id=reply.id)
+        await self._emoji_like(event, emoji_ids, message_id=reply.id)
         event.stop_event()
 
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
@@ -101,7 +73,7 @@ class EmojiLikePlugin(Star):
         chain = event.get_messages()
         emoji_ids = [seg.id for seg in chain if isinstance(seg, Face)]
         if emoji_ids and random.random() < self.cfg.emoji_follow_prob:
-            await self.emoji_like(event, emoji_ids)
+            await self._emoji_like(event, emoji_ids)
 
         # 主动表情
         msg = event.message_str
@@ -115,6 +87,11 @@ class EmojiLikePlugin(Star):
         image_urls: list[str] | None = None,
         message_id: int | str | None = None,
     ):
-        emotion = await self.judge_emotion(event, text, image_urls)
+        emotion = await self.judger.judge_emotion(
+            event,
+            text=text,
+            image_urls=image_urls,
+            labels=self.cfg.emotion_labels,
+        )
         emoji_ids = self.cfg.get_emoji_ids(emotion, need_count=1)
-        await self.emoji_like(event, emoji_ids, message_id=message_id)
+        await self._emoji_like(event, emoji_ids, message_id=message_id)
