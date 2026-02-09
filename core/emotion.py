@@ -35,9 +35,10 @@ class EmotionJudger:
             - 成功时返回情感标签字符串
             - 失败时返回 None
         """
-        if emotion := event.get_extra("emotion"):
-            return emotion
-
+        if cached:= event.get_extra("emotion"):
+            if (labels and cached in labels) or (not labels):
+                logger.debug(f"复用情感标签: {cached}")
+                return cached
         try:
             provider = self.cfg.get_judge_provider(event.unified_msg_origin)
             system_prompt, prompt = self._build_prompt(text, labels)
