@@ -87,6 +87,18 @@ class EmotionJudger:
         return system_prompt, prompt
 
     def _parse_llm_response(self, text: str) -> str:
+        # 清理 markdown 代码块标记
+        text = text.strip()
+        if text.startswith("```"):
+            # 移除开头的 ```json 或 ```
+            first_newline = text.find("\n")
+            if first_newline != -1:
+                text = text[first_newline + 1:]
+            # 移除结尾的 ```
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
