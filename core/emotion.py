@@ -1,4 +1,5 @@
 import json
+import re
 from astrbot.api import logger
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 
@@ -87,6 +88,13 @@ class EmotionJudger:
         return system_prompt, prompt
 
     def _parse_llm_response(self, text: str) -> str:
+        # 清理 markdown 代码块标记（支持单行和多行，兼容 \r\n 换行）
+        text = text.strip()
+        # 匹配 ```json ... ``` 或 ``` ... ```，支持单行和多行
+        match = re.match(r"^```(?:\w*)\r?\n?(.*?)\r?\n?```$", text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
+
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
