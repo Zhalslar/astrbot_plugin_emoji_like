@@ -4,3 +4,5 @@ desc: 调用LLM判断消息的情感, 智能地给消息贴上QQ表情
 version: v2.0.0
 author: Zhalslar
 repo: https://github.com/Zhalslar/astrbot_plugin_emoji_like
+support_platforms:
+  - aiocqhttp
