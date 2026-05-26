@@ -53,6 +53,30 @@ class EmojiLikePlugin(Star):
 
             await asyncio.sleep(self.cfg.emoji_interval)
 
+    async def _follow_reaction_notice(self, event: AiocqhttpMessageEvent) -> bool:
+        raw = getattr(event.message_obj, "raw_message", None)
+        if not raw or raw.get("post_type") != "notice":
+            return False
+        if raw.get("notice_type") not in ("group_msg_emoji_like", "reaction"):
+            return False
+        if raw.get("is_add") is False:
+            return False
+        if str(raw.get("user_id")) == str(event.get_self_id()):
+            return False
+        if random.random() >= self.cfg.emoji_reaction_follow_prob:
+            return False
+
+        message_id = raw.get("message_id")
+        if not message_id:
+            return False
+
+        for item in raw.get("likes") or []:
+            emoji_id = item.get("emoji_id") if isinstance(item, dict) else None
+            if str(emoji_id).isdigit():
+                await self._emoji_like(event, [int(emoji_id)], message_id=message_id)
+                return True
+        return False
+
     @filter.command("贴表情")
     async def on_command(self, event: AiocqhttpMessageEvent, emojiNum: int = 5):
         """贴表情 <数量>"""
@@ -78,6 +102,10 @@ class EmojiLikePlugin(Star):
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def on_message(self, event: AiocqhttpMessageEvent):
         """群消息监听"""
+        if await self._follow_reaction_notice(event):
+            event.stop_event()
+            return
+
         if event.is_at_or_wake_command:
             return
 

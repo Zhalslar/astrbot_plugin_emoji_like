@@ -112,6 +112,7 @@ class ConfigNode:
 class PluginConfig(ConfigNode):
     emoji_follow_prob: float
     emoji_like_prob: float
+    emoji_reaction_follow_prob: float
     judge_provider_id: str
     emoji_interval: float
     emotions_mapping_list: list[str]
